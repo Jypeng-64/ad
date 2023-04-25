@@ -92,9 +92,12 @@ optimizer = Adam(teacher.parameters(),lr=0.0001,weight_decay=0.00001)
 
 num_epoches = 10
 for epoch in range(num_epoches):
-    for i,(images,labels) in enumerate(dataloader):
+    for images,labels in enumerate(dataloader):
+        images = torch.Tensor(images)
+        labels_array = np.array(list(labels.values())).astype(np.float32)
+        labels_tensor = torch.Tensor(labels_array)
         images = images.cuda()
-        labels = labels.cuda()
+        labels_tensor = labels_tensor.cuda()
         optimizer.zero_grad()
         outputs = teacher(images)
         loss = criterion(outputs,labels)
@@ -102,6 +105,6 @@ for epoch in range(num_epoches):
         optimizer.step()
 
         if (i+1) %100 == 0:
-            print(f'Epoch [{epoch+1}/{num_epoches}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item()}')
+            print(f'Epoch [{epoch+1}/{num_epoches}], Step [{i+1}/{len(dataloader)}], Loss:{loss.item()}')
 
 torch.save(teacher.state_dict(), 'teacher_model.pth')
