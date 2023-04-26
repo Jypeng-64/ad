@@ -1,110 +1,66 @@
 import torch
-#from data_loader import ImageNetDataset
-from torch import nn
-from torch.optim import Adam
-from myad.src.mainnet import TeacherNet
-import os
-import numpy as np
-import pandas as pd
-import torch
-from PIL import Image
-from einops import rearrange
-from torchvision import transforms
-from torch.utils.data.dataset import Dataset
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
+# 定义数据集
 
-class AnomalyDataset(Dataset):
-    '''Anomaly detection dataset.
-    - root_dir: path to the dataset to train the model on, eg: <path>/data/carpet
-    - transform: list of transformation to apply on input image, eg: Resize, Normalize, etc
-    - gt_transform: list of transformation to apply on gt image, eg: Resize.
-    - constraint: filter to apply on the reading of the CSV file, a filter is a kwarg.
-                  eg: type='train' to filter train data
-                      label=0 to filter on anomaly-free data
-    '''
+train_transforms=transforms.Compose([
+                             transforms.Resize((256, 256)),
+                             transforms.CenterCrop((256, 256)),
+                             transforms.ToTensor(),
+                             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+#train_dataset = ImageFolder(root='/media/densogup-1/8T/jyp/myad/data/ILSVRC2012_img_train', transform=train_transforms)
+#train_dataset = datasets.ImageNet(root='./data', train=True,  transform=train_transforms)
+train_dataset = ImageFolder(root='/media/densogup-1/8T/jyp/myad/data/carpet/img', transform=train_transforms)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+# 定义 teacher 网络
+class TeacherNet(nn.Module):
+    def __init__(self):
+        super(TeacherNet, self).__init__()
+        self.conv1 = nn.Conv2d(3, 128, kernel_size=4, stride=1, padding=3)
+        self.pool1 = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(128, 256, kernel_size=4, stride=1, padding=3)
+        self.pool2 = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(256, 384, kernel_size=4, stride=1)
 
-    def __init__(self, root_dir, transform=transforms.ToTensor(), gt_transform=transforms.ToTensor(), **constraint):
-        super(AnomalyDataset, self).__init__()
-        self.root_dir = root_dir
-        self.transform = transform
-        self.gt_transform = gt_transform
-        self.img_dir = os.path.join(self.root_dir, 'img')
-        self.gt_dir = os.path.join(self.root_dir, 'ground_truth')
-        self.dataset = self.root_dir.split('/')[-1]
-        self.csv_file = os.path.join(self.root_dir, 'carpet' + '.csv')
-        self.frame_list = self._get_dataset(self.csv_file, constraint)
-
-    def _get_dataset(self, csv_file, constraint):
-        '''Apply filter based on the contraint dict on the dataset'''
-        df = pd.read_csv(csv_file, keep_default_na=False)
-        df = df.loc[(df[list(constraint)] == pd.Series(constraint)).all(axis=1)]
-        return df
-
-    def __len__(self):
-        return len(self.frame_list)
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        item = self.frame_list.iloc[idx]
-        img_path = os.path.join(self.img_dir, item['image_name'])
-        label = self.frame_list.iloc[idx]['label']
-        image = Image.open(img_path)
-
-        if item['gt_name']:
-            gt_path = os.path.join(self.gt_dir, item['gt_name'])
-            gt = Image.open(gt_path)
-        else:
-            gt = Image.new('L', image.size, color=0)
-
-        sample = {'label': label}
-
-        if self.transform:
-            sample['image'] = self.transform(image)
-
-        if self.gt_transform:
-            sample['gt'] = self.gt_transform(gt)
-
-        return sample
+    def forward(self, x):
+        x = nn.functional.relu(self.conv1(x))
+        x = self.pool1(x)
+        x = nn.functional.relu(self.conv2(x))
+        x = self.pool2(x)
+        x = nn.functional.relu(self.conv3(x))
+        x = self.conv4(x)
+        return x
 
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import sys
 
-    # DATASET = sys.argv[1]
-    dataset = AnomalyDataset(root_dir=f'/media/densogup-1/8T/jyp/myad/data/carpet/',
-                             transform=transforms.Compose([
-                                 transforms.Resize((256, 256)),
-                                 transforms.RandomCrop((256, 256)),
-                                 transforms.ToTensor(),
-                                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
-                             type='train',
-                             label=0)
-
-    dataloader = DataLoader(dataset, batch_size=128,shuffle=True,num_workers=4)
-teacher=TeacherNet()
-teacher=teacher.cuda()
-
+# 定义优化器和损失函数
+lr = 0.0001
+num_epochs = 10
+teacher_net = TeacherNet()
+teacher_net = teacher_net.cuda()
+optimizer = optim.Adam(teacher_net.parameters(), lr=lr,weight_decay=0.00001)
+#criterion = nn.CrossEntropyLoss()
 criterion = nn.MSELoss()
-optimizer = Adam(teacher.parameters(),lr=0.0001,weight_decay=0.00001)
 
-num_epoches = 10
-for epoch in range(num_epoches):
-    for images,labels in enumerate(dataloader):
-        images = torch.Tensor(images)
-        labels_array = np.array(list(labels.values())).astype(np.float32)
-        labels_tensor = torch.Tensor(labels_array)
+# 数据集上训练 teacher 网络
+for epoch in range(num_epochs):
+    for i, (images, labels) in enumerate(train_loader):
         images = images.cuda()
-        labels_tensor = labels_tensor.cuda()
+        labels = labels.cuda()
         optimizer.zero_grad()
-        outputs = teacher(images)
-        loss = criterion(outputs,labels)
+        outputs = teacher_net(images)
+        #labels = labels.view(-1,1)
+        labels = labels.expand_as(outputs)
+        print(outputs.size(), labels.size())
+        loss = criterion(outputs, labels.float())
         loss.backward()
         optimizer.step()
+        if (i+1) % 100 == 0:
+            print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
 
-        if (i+1) %100 == 0:
-            print(f'Epoch [{epoch+1}/{num_epoches}], Step [{i+1}/{len(dataloader)}], Loss:{loss.item()}')
-
-torch.save(teacher.state_dict(), 'teacher_model.pth')
+# 保存预训练的 teacher 网络权重为 pth 文件
+torch.save(teacher_net.state_dict(), 'teacher_net.pth')
