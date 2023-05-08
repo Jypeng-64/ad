@@ -1,3 +1,30 @@
+import os
+import csv
+
+# 定义数据集的根目录路径和输出 CSV 文件路径
+root_dir = '/path/to/dataset'
+csv_file = '/path/to/output/csv/file.csv'
+
+# 遍历数据集的子文件夹，获取每个子文件夹的名称和路径
+subdirs = [os.path.join(root_dir, d) for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d))]
+
+# 初始化 CSV 文件的表头和数据列表
+header = ['filename', 'label']
+data = []
+
+# 遍历每个子文件夹，获取子文件夹中所有的 JPG 文件，并将其添加到数据列表中
+for subdir in subdirs:
+    label = os.path.basename(subdir)
+    filenames = [f for f in os.listdir(subdir) if f.endswith('.jpg')]
+    for filename in filenames:
+        data.append([os.path.join(subdir, filename), label])
+
+# 将数据列表写入 CSV 文件
+with open(csv_file, 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(header)
+    writer.writerows(data)
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
