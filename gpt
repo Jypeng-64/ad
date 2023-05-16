@@ -19,6 +19,7 @@ for filename in os.listdir(original_dir):
         binary = cv2.imread(binary_path, cv2.IMREAD_GRAYSCALE)
         
         # Find contours in binary image
+        
         contours, hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         # Draw contours on original image
@@ -30,3 +31,20 @@ for filename in os.listdir(original_dir):
         # Save the result image
         cv2.imwrite(result_path, img)
        
+import cv2
+import numpy as np
+
+# Load the original image and the binary image
+img = cv2.imread('path/to/original/image')
+binary = cv2.imread('path/to/binary/image', cv2.IMREAD_GRAYSCALE)
+
+# Find contours in binary image
+contours, hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# Draw contours on original image
+cv2.drawContours(img, contours, -1, (0, 0, 255), 2)
+
+# Display result image
+cv2.imshow('Result Image', img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
