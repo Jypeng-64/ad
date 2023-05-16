@@ -1,5 +1,32 @@
-[ WARN:0@0.010] global /io/opencv/modules/imgcodecs/src/grfmt_tiff.cpp (629) readData OpenCV TIFF: TIFFRGBAImageOK: Sorry, can not handle images with 32-bit samples
-Traceback (most recent call last):
-  File "/media/densogup-1/8T/jyp/AD/EfficientAD/output0.3/bin.py", line 60, in <module>
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-cv2.error: OpenCV(4.6.0) /io/opencv/modules/imgproc/src/color.cpp:182: error: (-215:Assertion failed) !_src.empty() in function 'cvtColor'
+import cv2
+import os
+
+# Define the directories containing original images and binary images
+original_dir = '/path/to/original/images'
+binary_dir = '/path/to/binary/images'
+result_dir = '/path/to/result/images'
+
+# Traverse the original directory and process each original image
+for filename in os.listdir(original_dir):
+    # Check if the file is an image
+    if filename.endswith('.png') or filename.endswith('.jpg'):
+        # Construct the paths to the original image and the corresponding binary image
+        img_path = os.path.join(original_dir, filename)
+        binary_path = os.path.join(binary_dir, filename)
+        
+        # Load the original image and the corresponding binary image
+        img = cv2.imread(img_path)
+        binary = cv2.imread(binary_path, cv2.IMREAD_GRAYSCALE)
+        
+        # Find contours in binary image
+        contours, hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Draw contours on original image
+        cv2.drawContours(img, contours, -1, (0, 0, 255), 2)
+        
+        # Define the path to the result image
+        result_path = os.path.join(result_dir, filename)
+        
+        # Save the result image
+        cv2.imwrite(result_path, img)
+       
