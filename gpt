@@ -1,3 +1,46 @@
+from PIL import Image
+import os
+
+# 读取tiff图像
+def read_tiff(file_path):
+    img = Image.open(file_path)
+    return img
+
+# 将图像转换为二值图像
+def convert_to_binary(img):
+    # 将图像转换为灰度图
+    img_gray = img.convert('L')
+    # 将灰度图转换为二值图
+    img_binary = img_gray.point(lambda x: 0 if x < 128 else 255, '1')
+    return img_binary
+
+# 将二值图像保存为jpg格式
+def save_jpg(img, save_path):
+    img.save(save_path, 'JPEG', quality=95)
+
+# 遍历目录树，找到所有的tiff图像并转换为jpg格式
+def convert_tiff_to_jpg(root_folder_path, save_folder_path):
+    for root, dirs, files in os.walk(root_folder_path):
+        for filename in files:
+            if filename.endswith('.tiff') or filename.endswith('.tif'):
+                # 读取tiff图像
+                tiff_path = os.path.join(root, filename)
+                img = read_tiff(tiff_path)
+                # 将图像转换为二值图像
+                img_binary = convert_to_binary(img)
+                # 保存二值图像为jpg格式
+                save_path = os.path.join(save_folder_path, filename[:-4] + '.jpg')
+                save_jpg(img_binary, save_path)
+
+# 主函数
+if __name__ == '__main__':
+    # tiff图像所在文件夹路径
+    root_folder_path = '/path/to/root/folder'
+    # jpg图像保存路径
+    save_folder_path = '/path/to/jpg/folder'
+    # 将所有的tiff图像转换为jpg格式并二值化
+    convert_tiff_to_jpg(root_folder_path, save_folder_path)
+
 import torch
 import torch.nn.functional as F
 import os
