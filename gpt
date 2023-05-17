@@ -1,38 +1,38 @@
-cv2.error: OpenCV(4.6.0) /io/opencv/modules/imgcodecs/src/loadsave.cpp:730: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'imwrite_'
-
 import os
 import cv2
 import numpy as np
 from PIL import Image
 from torchvision import transforms
 
-# 将图像转换为二值图像
-def convert_to_binary(img):
+# 图像正则化函数
+def normalize_image(img):
     # 将图像转换为灰度图
-    img_gray = img.convert('L')
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # 将灰度图转换为 PyTorch tensor
-    to_tensor = transforms.ToTensor()
-    img_tensor = to_tensor(img_gray)
-
-    # 将 tensor 归一化到 [0, 1]
-    normalize = transforms.Normalize((0.0,), (1.0,))
-    img_norm = normalize(img_tensor)
-
-    # 将 PyTorch tensor 转换为 NumPy 数组
-    img_numpy = img_norm.numpy()
+    # 正则化图像
+    img_norm = cv2.normalize(img_gray, None, 0, 255, cv2.NORM_MINMAX)
 
     # 将 NumPy 数组转换为灰度图像
-    img_gray = np.uint8(img_numpy[0]*255)
+    img_norm = np.uint8(img_norm)
 
+    # 返回正则化后的图像
+    return img_norm
+
+# 将图像转换为二值图像
+def convert_to_binary(img, file_path):
     # 将灰度图像二值化得到二值图像
-    _, img_binary = cv2.threshold(img_gray, 128, 1, cv2.THRESH_BINARY)
+    _, img_binary = cv2.threshold(img, 128, 1, cv2.THRESH_BINARY)
 
     # 保存二值图像到文件
     save_path = os.path.join(output_dir, os.path.relpath(file_path, input_dir)).replace('.tif', '.png').replace('.tiff', '.png')
     save_dir = os.path.dirname(save_path)
     os.makedirs(save_dir, exist_ok=True)
-    cv2.imwrite(save_path, img_binary*255)
+
+    # 将 NumPy 数组转换为 PIL 图像
+    img_binary_pil = Image.fromarray(np.uint8(img_binary*255))
+
+    # 保存 PIL 图像为 PNG 文件
+    img_binary_pil.save(save_path)
 
     # 返回二值图像
     return img_binary
@@ -43,5 +43,6 @@ def convert_images(input_dir, output_dir):
         for filename in files:
             if filename.lower().endswith('.tif') or filename.lower().endswith('.tiff'):
                 file_path = os.path.join(root, filename)
-                img = Image.fromarray(cv2.imread(file_path, cv2.IMREAD_UNCHANGED))
-                img_binary = convert_to_binary(img)
+                img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+                img_norm = normalize_image(img)
+                img_binary = convert_to_binary(img_norm, file_path)
