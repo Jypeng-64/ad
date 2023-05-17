@@ -27,7 +27,7 @@ def convert_to_binary(img):
     _, img_binary = cv2.threshold(img_gray, 128, 1, cv2.THRESH_BINARY)
 
     # 保存二值图像到文件
-    save_path = os.path.join(output_dir, os.path.relpath(file_path, input_dir))
+    save_path = os.path.join(output_dir, os.path.relpath(file_path, input_dir)).replace('.tif', '.png').replace('.tiff', '.png')
     save_dir = os.path.dirname(save_path)
     os.makedirs(save_dir, exist_ok=True)
     cv2.imwrite(save_path, img_binary*255)
@@ -39,16 +39,7 @@ def convert_to_binary(img):
 def convert_images(input_dir, output_dir):
     for root, dirs, files in os.walk(input_dir):
         for filename in files:
-            if filename.lower().endswith('.jpg') or filename.lower().endswith('.png'):
+            if filename.lower().endswith('.tif') or filename.lower().endswith('.tiff'):
                 file_path = os.path.join(root, filename)
-                img = Image.open(file_path)
+                img = Image.fromarray(cv2.imread(file_path, cv2.IMREAD_UNCHANGED))
                 img_binary = convert_to_binary(img)
-
-# 主函数
-if __name__ == '__main__':
-    # 输入图像所在文件夹路径
-    input_dir = '/path/to/input/images'
-    # 输出二值图像保存路径
-    output_dir = '/path/to/output/images'
-    # 将所有的图像转换为二值图像
-    convert_images(input_dir, output_dir)
