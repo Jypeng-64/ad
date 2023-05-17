@@ -1,50 +1,66 @@
-import cv2
+from PIL import Image,ImageOps
 import os
-
-# Define the directories containing original images and binary images
-original_dir = '/path/to/original/images'
-binary_dir = '/path/to/binary/images'
-result_dir = '/path/to/result/images'
-
-# Traverse the original directory and process each original image
-for filename in os.listdir(original_dir):
-    # Check if the file is an image
-    if filename.endswith('.png') or filename.endswith('.jpg'):
-        # Construct the paths to the original image and the corresponding binary image
-        img_path = os.path.join(original_dir, filename)
-        binary_path = os.path.join(binary_dir, filename)
-        
-        # Load the original image and the corresponding binary image
-        img = cv2.imread(img_path)
-        binary = cv2.imread(binary_path, cv2.IMREAD_GRAYSCALE)
-        
-        # Find contours in binary image
-        
-        contours, hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Draw contours on original image
-        cv2.drawContours(img, contours, -1, (0, 0, 255), 2)
-        
-        # Define the path to the result image
-        result_path = os.path.join(result_dir, filename)
-        
-        # Save the result image
-        cv2.imwrite(result_path, img)
-       
 import cv2
+from torchvision import transforms
+import torch
 import numpy as np
+# 读取tiff图像
+def read_tiff(file_path):
+    img = Image.open(file_path)
+    return img
 
-# Load the original image and the binary image
-img = cv2.imread('path/to/original/image')
-binary = cv2.imread('path/to/binary/image', cv2.IMREAD_GRAYSCALE)
+# 将图像转换为二值图像
+def convert_to_binary(img):
+    # 将图像转换为灰度图
+    img_gray = img.convert('L')
+    # convert to tensor
+    to_tensor = transforms.ToTensor()
+    img_tensor = to_tensor(img)
+    normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    img_norm = normalize(img_tensor)
+    # convert to numpy
+    img_numpy = img_norm.numpy()
+    # normalization
 
-# Find contours in binary image
-contours, hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    threshold
+    img_binary = cv2.threshold()
+    cv2.imwrite()
+    # 将灰度图转换为二值图
+    # threshold = 0.000000000000001
+    # img_binary = img_gray.point(lambda x: 0 if x < threshold else 255, '1')
 
-# Draw contours on original image
-cv2.drawContours(img, contours, -1, (0, 0, 255), 2)
+    #img_gray = img.convert('L')
+    #img_binary = cv2.adaptiveThreshold(img_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 25, 10)
+    return img_binary
 
-# Display result image
-cv2.imshow('Result Image', img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# 将二值图像保存为png格式
+def save_png(img, save_path):
+    #img_gray = ImageOps.invert(img.convert('L'))
+    img_gray = img.convert('L')
+    img_gray.save(save_path, 'PNG')
+
+# 遍历目录树，找到所有的tiff图像并转换为jpg格式
+def convert_tiff_to_png(root_folder_path, save_folder_path):
+    for root, dirs, files in os.walk(root_folder_path):
+        for filename in files:
+            if filename.endswith('.tiff') or filename.endswith('.tif'):
+                # 读取tiff图像
+                tiff_path = os.path.join(root, filename)
+                img = read_tiff(tiff_path)
+                # 将图像转换为二值图像
+                img_binary = convert_to_binary(img)
+                # 保存二值图像为jpg格式
+                save_sub_folder_path = os.path.join(save_folder_path,os.path.relpath(root,root_folder_path))
+                save_path = os.path.join(save_sub_folder_path, filename[:-4] + 'png')
+                os.makedirs(save_sub_folder_path,exist_ok=True)
+                save_png(img_binary, save_path)
+
+# 主函数
+if __name__ == '__main__':
+    # tiff图像所在文件夹路径
+    root_folder_path = '/media/densogup-1/8T/jyp/AD/EfficientAD/output0.3/1/anomaly_maps/mvtec_ad/capsule/test'
+    # jpg图像保存路径
+    save_folder_path = '/media/densogup-1/8T/jyp/AD/EfficientAD/output0.3/png_imagese-15/capsule/test'
+    # 将所有的tiff图像转换为png格式并二值化
+    convert_tiff_to_png(root_folder_path, save_folder_path)
+
