@@ -1,66 +1,54 @@
-from PIL import Image,ImageOps
 import os
 import cv2
-from torchvision import transforms
-import torch
 import numpy as np
-# 读取tiff图像
-def read_tiff(file_path):
-    img = Image.open(file_path)
-    return img
+from PIL import Image
+from torchvision import transforms
 
 # 将图像转换为二值图像
 def convert_to_binary(img):
     # 将图像转换为灰度图
     img_gray = img.convert('L')
-    # convert to tensor
+
+    # 将灰度图转换为 PyTorch tensor
     to_tensor = transforms.ToTensor()
-    img_tensor = to_tensor(img)
-    normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    img_tensor = to_tensor(img_gray)
+
+    # 将 tensor 归一化到 [0, 1]
+    normalize = transforms.Normalize((0.0,), (1.0,))
     img_norm = normalize(img_tensor)
-    # convert to numpy
+
+    # 将 PyTorch tensor 转换为 NumPy 数组
     img_numpy = img_norm.numpy()
-    # normalization
 
-    threshold
-    img_binary = cv2.threshold()
-    cv2.imwrite()
-    # 将灰度图转换为二值图
-    # threshold = 0.000000000000001
-    # img_binary = img_gray.point(lambda x: 0 if x < threshold else 255, '1')
+    # 将 NumPy 数组转换为灰度图像
+    img_gray = np.uint8(img_numpy[0]*255)
 
-    #img_gray = img.convert('L')
-    #img_binary = cv2.adaptiveThreshold(img_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 25, 10)
+    # 将灰度图像二值化得到二值图像
+    _, img_binary = cv2.threshold(img_gray, 128, 1, cv2.THRESH_BINARY)
+
+    # 保存二值图像到文件
+    save_path = os.path.join(output_dir, os.path.relpath(file_path, input_dir))
+    save_dir = os.path.dirname(save_path)
+    os.makedirs(save_dir, exist_ok=True)
+    cv2.imwrite(save_path, img_binary*255)
+
+    # 返回二值图像
     return img_binary
 
-# 将二值图像保存为png格式
-def save_png(img, save_path):
-    #img_gray = ImageOps.invert(img.convert('L'))
-    img_gray = img.convert('L')
-    img_gray.save(save_path, 'PNG')
-
-# 遍历目录树，找到所有的tiff图像并转换为jpg格式
-def convert_tiff_to_png(root_folder_path, save_folder_path):
-    for root, dirs, files in os.walk(root_folder_path):
+# 遍历目录树，找到所有的图像并转换为二值图像
+def convert_images(input_dir, output_dir):
+    for root, dirs, files in os.walk(input_dir):
         for filename in files:
-            if filename.endswith('.tiff') or filename.endswith('.tif'):
-                # 读取tiff图像
-                tiff_path = os.path.join(root, filename)
-                img = read_tiff(tiff_path)
-                # 将图像转换为二值图像
+            if filename.lower().endswith('.jpg') or filename.lower().endswith('.png'):
+                file_path = os.path.join(root, filename)
+                img = Image.open(file_path)
                 img_binary = convert_to_binary(img)
-                # 保存二值图像为jpg格式
-                save_sub_folder_path = os.path.join(save_folder_path,os.path.relpath(root,root_folder_path))
-                save_path = os.path.join(save_sub_folder_path, filename[:-4] + 'png')
-                os.makedirs(save_sub_folder_path,exist_ok=True)
-                save_png(img_binary, save_path)
 
 # 主函数
 if __name__ == '__main__':
-    # tiff图像所在文件夹路径
-    root_folder_path = '/media/densogup-1/8T/jyp/AD/EfficientAD/output0.3/1/anomaly_maps/mvtec_ad/capsule/test'
-    # jpg图像保存路径
-    save_folder_path = '/media/densogup-1/8T/jyp/AD/EfficientAD/output0.3/png_imagese-15/capsule/test'
-    # 将所有的tiff图像转换为png格式并二值化
-    convert_tiff_to_png(root_folder_path, save_folder_path)
-
+    # 输入图像所在文件夹路径
+    input_dir = '/path/to/input/images'
+    # 输出二值图像保存路径
+    output_dir = '/path/to/output/images'
+    # 将所有的图像转换为二值图像
+    convert_images(input_dir, output_dir)
