@@ -1,31 +1,47 @@
-import cv2
+from PIL import Image
+import numpy as np
 import os
 
-# Define the directories containing original images and binary images
-original_dir = r'/media/densogup-1/8T/jyp/myad/data/mvtec_anomaly_detection/capsule/test/crack'
-binary_dir =r'/media/densogup-1/8T/jyp/myad/data/mvtec_anomaly_detection/capsule/ground_truth/crack'
-result_dir = '/media/densogup-1/8T/jyp/AD/EfficientAD/output0.3/draw_ori/capsule/test/crack'
-os.makedirs(result_dir,exist_ok=True)
-# Traverse the original directory and process each original image
-for filename in os.listdir(original_dir):
-    # Check if the file is an image
-    if filename.endswith('.png') or filename.endswith('.jpg'):
-        # Construct the paths to the original image and the corresponding binary image
-        img_path = os.path.join(original_dir, filename)
-        binary_path = os.path.join(binary_dir, filename)
+def iou_folder(gt_folder, pred_folder):
+    # 获得groundtruth和predictedmask文件夹中的所有图像文件名
+    gt_files = os.listdir(gt_folder)
+    pred_files = os.listdir(pred_folder)
+    
+    # 初始化IOU值和计数器
+    iou_sum = 0
+    count = 0
+    
+    # 循环遍历groundtruth和predictedmask文件夹中的所有图像
+    for file in gt_files:
+        if file in pred_files:
+            # 加载groundtruth图像
+            gt_image = Image.open(os.path.join(gt_folder, file)).convert('1')
+            gt_array = np.array(gt_image).astype(np.bool)
+            
+            # 加载predictedmask图像
+            pred_image = Image.open(os.path.join(pred_folder, file))
+            pred_array = np.array(pred_image).astype(np.bool)
+            
+            # 计算IOU值
+            intersection = np.logical_and(gt_array, pred_array)
+            intersection_area = intersection.sum()
+            union = np.logical_or(gt_array, pred_array)
+            union_area = union.sum()
+            iou_score = intersection_area / union_area
+            
+            # 更新IOU值和计数器
+            iou_sum += iou_score
+            count += 1
+    
+    # 计算平均IOU值
+    avg_iou = iou_sum / count
+    # groundtruth和predictedmask文件夹的路径
+gt_folder = 'groundtruth_folder'
+pred_folder = 'predictedmask_folder'
 
-        # Load the original image and the corresponding binary image
-        img = cv2.imread(img_path)
-        binary = cv2.imread(binary_path, cv2.IMREAD_GRAYSCALE)
+# 计算平均IOU值
+avg_iou = iou_folder(gt_folder, pred_folder)
 
-        # Find contours in binary image
-        contours, hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Draw contours on original image
-        cv2.drawContours(img, contours, -1, (0, 0, 255), 5)
-
-        # Define the path to the result image
-        result_path = os.path.join(result_dir, filename)
-
-        # Save the result image
-        cv2.imwrite(result_path, img)
+# 输出结果
+print(avg_iou)
+    return avg_iou
